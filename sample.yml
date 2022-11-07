@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  AvailabilityZone:
+    Description: Amazon EC2 instance Availability Zone
+    Type: String
+    Default: ap-northeast-1
+  AMIId:
+    Description: The Amazon Machine Image id
+    Type: String
+  InstanceType:
+    Description: The Type of instance
+    Type: String
+Resources:
+  BasicParameter:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: AZKey
+      Type: String
+      Value: !Ref AvailabilityZone
+  myinstance:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      AvailabilityZone: !GetAtt BasicParameter.Value
+      ImageId: !Ref AMIId
+      InstanceType: !Ref InstanceType
+
+####################################################
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  AMIId:
+    Description: The Amazon Machine Image id
+    Type: String
+  InstanceType:
+    Description: The Type of instance
+    Type: String
+  AvailabilityZone:
+    Description: Amazon EC2 instance Availablity Zone
+    Type: 'AWS::SSM::Parameter::Value<String>'
+    Default: AZKey
+Mappings: {}
+Conditions: {}
+Resources:
+  myinstance:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone
+      ImageId: !Ref AMIId
+      InstanceType: !Ref InstanceType
