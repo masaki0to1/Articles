@@ -9,7 +9,7 @@
 
 - 既存リモートリポジトリ変更コマンド
 
-		git remore set-url <RemoteRepositoryName> <RemoteRepositoryURL>
+		git remote set-url <RemoteRepositoryName> <RemoteRepositoryURL>
 
 - 複数リモートリポジトリ追加コマンド（１つのリポジトリ名で複数リポジトリ管理）
 

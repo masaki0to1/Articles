@@ -582,7 +582,7 @@ Resources:
 # ------------------------------------------------------------#
 # SSM Parameter Store
 # ------------------------------------------------------------#
-  SsmParameterAwsRegion: #要確認
+  SsmParamAwsRegion: #要確認
     Type: AWS::SSM::Parameter
     Properties:
       Name: !Sub ${Service}_REGION
