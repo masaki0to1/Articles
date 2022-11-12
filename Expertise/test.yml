@@ -626,6 +626,8 @@ Resources:
     Properties:
       DisplayName: !Sub ${Stack}-${Env}-sns-topic
       Subscription: !Sub '{{resolve:ssm:${KeySnsTopicSubscriber}}}'
+      Protocol: sqs
+      RawMessageDelivery: 'true'
       TopicName: !Sub ${Stack}-${Env}-sns-topic
       Tags: 
         - Key: Env
@@ -640,16 +642,37 @@ Resources:
 #------------------------------#
 # SNS Subscription
 #------------------------------#
-  Sns-subscription:
+  SnsSubscription:
     Type: AWS::SNS::Subscription
     Properties:
+      Endpoint: !GetAtt Sqs
+      Protocol: sqs
+      RawMessageDelivery: 'true'
       TopicArn: !Ref SnsTopic
-      Protocol: email
-      Endpoint: 
-      Region: 
-      DeliveryPolicy: 
-      FilterPolicy: 
-      RawMessageDelivery: 
+
+#------------------------------#
+# SQS
+#------------------------------#
+  SqsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${Stack}-${Env}-sqs-queue
+      DelaySeconds: 
+      MaximumMessageSize: 
+      MessageRetentionPeriod: 
+      ReceiveMessageWaitTimeSeconds: 
+      RedrivePolicy: 
+      VisibilityTimeout: 
+      FifoQueue: false
+      Tags: 
+        - Key: Env
+          Value: !Ref Env
+        - Key: Stack
+          Value: !Ref Stack
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Cost
+          Value: !Sub ${Env}-${Stack}
 
 #------------------------------#
 # CloudWatchAlarm
