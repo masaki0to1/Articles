@@ -656,13 +656,29 @@ Resources:
   SqsQueue:
     Type: AWS::SQS::Queue
     Properties:
+      FifoQueue: false
+      DelaySeconds: 0
+      MaximumMessageSize: 262144
+      MessageRetentionPeriod: 345600
       QueueName: !Sub ${Stack}-${Env}-sqs-queue
-      DelaySeconds: 
-      MaximumMessageSize: 
-      MessageRetentionPeriod: 
-      ReceiveMessageWaitTimeSeconds: 
+      ReceiveMessageWaitTimeSeconds: 20
       RedrivePolicy: 
-      VisibilityTimeout: 
+        deadLetterTargetArn: !GetAtt SqsQueueDeadLetterQueue.Arn
+        maxReceiveCount: 5
+      VisibilityTimeout: 30
+      Tags: 
+        - Key: Env
+          Value: !Ref Env
+        - Key: Stack
+          Value: !Ref Stack
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Cost
+          Value: !Sub ${Env}-${Stack}
+
+  SqsQueueDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
       FifoQueue: false
       Tags: 
         - Key: Env
@@ -708,14 +724,64 @@ Resources:
       Dimensions: 
         - Name: InstanceId
           Value: !Ref Ec2InstanceTestTarget
-      EvaluationPeriods: 2
+      EvaluationPeriods: 5
       MetricName: CPUUtilization
       Namespace: AWS/EC2
-      Period: 300
+      Period: 60
       Statistic: Average
-      Threshold: 0
+      Threshold: 70
       TreatMissingData: missing
 
-# 
+# MemoryUtilization
+  CloudWatchAlarmTestTargetCpuUtilization:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions: 
+        - !Ref SnsTopic 
+      AlarmName: !Sub ${Stack}-${Env}-ec2-memory-utilization
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions: 
+        - Name: InstanceId
+          Value: !Ref Ec2InstanceTestTarget
+        - Name: ImageId
+          Value: !Sub '{{resolve:ssm:${KeyImageId}}}'
+        - Name: InstanceType
+          Value: t3.small
+      EvaluationPeriods: 5
+      MetricName: mem_used_percent
+      Namespace: CWAgent/Server
+      Period: 60
+      Statistic: Average
+      Threshold: 80
+      TreatMissingData: missing
+
+# DiskUtilization
+  CloudWatchAlarmTestTargetCpuUtilization:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions: 
+        - !Ref SnsTopic 
+      AlarmName: !Sub ${Stack}-${Env}-ec2-disk-utilization
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions: 
+        - Name: path
+          Value: '/'
+        - Name: InstanceId
+          Value: !Ref Ec2InstanceTestTarget
+        - Name: ImageId
+          Value: !Sub '{{resolve:ssm:${KeyImageId}}}'
+        - Name: InstanceType
+          Value: t3.small
+        - Name: device
+          Value: nvme0n1p1
+        - Name: fstype
+          Value: ext4
+      EvaluationPeriods: 6
+      MetricName: disk_used_percent
+      Namespace: CWAgent/Server
+      Period: 300
+      Statistic: Average
+      Threshold: 90
+      TreatMissingData: missing
 
 Outputs:
