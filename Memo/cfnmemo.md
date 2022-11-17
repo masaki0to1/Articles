@@ -1,9 +1,9 @@
 # CloudFormation テンプレート開発のTipsまとめ
 
-## パラメータについて
+## CFnテンプレートのParemtersセクションについて
 ---
-
-### 結論：
+## **Q. SSM Parameter Store を使うべきか：**
+## **結論：**
 - どうしてもCFn内でのみ完結したい場合を除き、SSM Parameter Store を積極的に利用するべき。
 - その際、Parameters セクションで SSM Parameter Store のパラメータのキーを指定し、!Sub '{{resolve:ssm:${ParamKey}}}' で動的参照するのが最も柔軟性があり変更に強い参照の方法になるので、これを推奨する。
 
@@ -110,7 +110,7 @@
 
         UseKeyResource:
             Properties:
-                Key: '{{resolve:ssm:/${SsmKeyParameter}}}'
+                Key: '{{resolve:ssm:${SsmKeyParameter}}}'
 
 - これを下記のようにすれば、ちゃんと動くはずだが、
 
@@ -123,8 +123,9 @@
             Properties:
                 Key: '{{resolve:ssm:${SsmKeyParameter}}}'
 
-- ここで言いたいのは、バリデーションが場合によっては機能しないということである
-- なので、Parameter の Type は String にしておくのが無難
+- ここで言いたいのは、本来バリデーションを効かせるのは、SSMパラメータキーの入力ミスに気づくためのはずだが、バリデーションが場合によっては機能せず、むしろスタックの進行が固まったままになり余計に面倒であるということである
+- また、キーを指定しない為に空欄にしても、パラメータ値が存在しないというエラーが出るため、キーを指定しない運用もできない
+- -> なので、Parameter の Type は String にしておくのが無難
 
 ## CFn の Parameters セクションで動的にパラメータを管理しようとして困ったこと
 --- 
