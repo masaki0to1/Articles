@@ -515,6 +515,7 @@ Resources:
         - !Ref RouteTablePriA
         - !Ref RouteTablePriC
       ServiceName: com.amazonaws.${AWS::Region}.s3
+      VpcEndpointType: Gateway
       VpcId: !Ref Vpc
 
 #------------------------------#
@@ -796,7 +797,7 @@ Resources:
       TreatMissingData: missing
 
 # MemoryUtilization
-  CloudWatchAlarmTestTargetCpuUtilization:
+  CloudWatchAlarmTestTargetMemoryUtilization:
     Condition: ConditionEc2InstanceTestTarget
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -820,7 +821,7 @@ Resources:
       TreatMissingData: missing
 
 # DiskUtilization
-  CloudWatchAlarmTestTargetCpuUtilization:
+  CloudWatchAlarmTestTargetDiskUtilization:
     Condition: ConditionEc2InstanceTestTarget
     Type: AWS::CloudWatch::Alarm
     Properties:
