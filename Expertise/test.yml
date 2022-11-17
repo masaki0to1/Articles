@@ -10,22 +10,20 @@ Metadata:
         Parameters:
           - Env
           - Stack
-          # - Service
           - Owner
-      # - 
-      #   Label:
-      #     default: SSM Paramter Store Key Configuration
-      #   Parameters:
-      #     - Key
+      - 
+        Label:
+          default: SSM Paramter Store Key Configuration
+        Parameters:
+          - KeyCidrBlock
+          - KeyPersonalIp1
 
     ParameterLabels:
       Stack:
         default: 'Stack: *Only lowercase alphanumeric characters and hyphens are allowed.'
-      # Service:
-      #   default: 'Service: *Only lowercase alphanumeric characters and hyphens are allowed.'
       Owner:
         default: 'Owner: *Only lowercase alphanumeric characters and hyphens are allowed. Please put a hyphen between your first name and last name.'
-        
+
 #---------------------------------------------------------#
 # Input Parameters
 #---------------------------------------------------------#
@@ -48,13 +46,6 @@ Parameters:
     AllowedPattern: ^[a-z]([\-]{0,1}[a-z0-9]+)*$
     ConstraintDescription: This Parameter must match pattern ^[a-z]([\-]{0.1}[a-z0-9]+)*$
 
-  # Service:
-  #   Description: Enter the Service Name.
-  #   Type: String
-  #   Default: ezapp
-  #   AllowedPattern: ^[a-z]([\-]{0,1}[a-z0-9]+)*$
-  #   ConstraintDescription: This Parameter must match pattern ^[a-z]([\-]{0.1}[a-z0-9]+)*$
-
   Owner:
     Description: Enter the name of the person creating this stack.
     Type: String
@@ -62,49 +53,120 @@ Parameters:
     AllowedPattern: ^[a-z]([\-]{0,1}[a-z0-9]+)*$
     ConstraintDescription: This Parameter must match pattern ^[a-z]([\-]{0.1}[a-z0-9]+)*$
 
-  # CidrBlockKey:
-  #   Description: Specify the SSM Parameter Key for CidrBlock.
-  #   Type: AWS::SSM::Parameter::Name
-  #   Default: /vpc/cidrblock
+# SSM Paramter Store Key
+  KeyCidrBlock:
+    Description: Specify the SSM Parameter Store Key for the VPC CidrBlock.
+    Type: AWS::SSM::Parameter::Name
+    Default: /vpc/cidrblock
 
   KeyPersonalIp1:
-    Description: Specify the SSM Parameter Key for PersonalIp1.
+    Description: Specify the SSM Parameter Store Key for the PersonalIp1.
     Type: AWS::SSM::Parameter::Name
     Default: /person1/ip
 
   KeyPersonalIpDescription1:
-    Description: Specify the SSM Parameter Key for PersonalIpDescription1.
+    Description: Specify the SSM Parameter Store Key for the PersonalIpDescription1.
     Type: AWS::SSM::Parameter::Name
     Default: /person1/description
 
   KeyPersonalIp2:
-    Description: Specify the SSM Parameter Key for PersonalIp2.
+    Description: Specify the SSM Parameter Store Key for the PersonalIp2.
     Type: AWS::SSM::Parameter::Name
     Default: /person2/ip
 
   KeyPersonalIpDescription2:
-    Description: Specify the SSM Parameter Key for PersonalIpDescription2.
+    Description: Specify the SSM Parameter Store Key for the PersonalIpDescription2.
     Type: AWS::SSM::Parameter::Name
     Default: /person2/description
 
-  DisableEc2ApiTermination:
-    Description: Switch EC2 DisableApiTermination Property.
+  KeyEbsVolumeSize:
+    Description: Specify the SSM Parameter Store Key for the EBS Volume Size.
+    Type: AWS::SSM::Parameter::Name
+    Default: /ec2/ebsvolumesize
+
+  KeyEbsVolumeType:
+    Description: Specify the SSM Parameter Store Key for the EBS Volume Type.
+    Type: AWS::SSM::Parameter::Name
+    Default: /ec2/ebsvolumetype
+
+  KeyImageId:
+    Description: Specify the SSM Parameter Store Key for the Instance Image ID.
+    Type: AWS::SSM::Parameter::Name
+    Default: /ec2/imageid
+
+  KeyInstanceType:
+    Description: Specify the SSM Parameter Store Key for the Instance Type.
+    Type: AWS::SSM::Parameter::Name
+    Default: /ec2/instancetype
+
+  KeyIamInstanceProfile:
+    Description: Specify the SSM Parameter Store Key for the IAM Instence Profile.
+    Type: AWS::SSM::Parameter::Name
+    Default: /ec2/iaminstanceprofile
+
+  KeySystemIpAddress:
+    Description: Specify the SSM Parameter Store Key for the SystemIpAddress.
+    Type: AWS::SSM::Parameter::Name
+    Default: /system/ipaddress
+
+  KeySnsTopicSubscriber:
+    Description: Specify the SSM Parameter Store Key for the SNS Topic Subscriber.
+    Type: AWS::SSM::Parameter::Name
+    Default: /sns/subscriber
+
+# Condition
+  ConditionEc2ApiTermination:
+    Description: Toggle whether or not to enable the DisableApiTermination property of EC2.
     Type: String
     AllowedValues: [ true, false ]
     Default: false
 
-Conditions:
-  CreateIngressPersonalIp1:
-    !Not [ !Equals [ '', !Ref KeyPersonalIp1]]
+  ConditionNatGatewayA:
+    Description: Toggle whether or not to create NatGatewayA.
+    Type: String
+    AllowedValues: [true, false]
+    Default: true
 
-Resources: 
+  ConditionNatGatewayC:
+    Description: Toggle whether or not to create NatGatewayC.
+    Type: String
+    AllowedValues: [true, false]
+    Default: false
+
+  ConditionTestTarget:
+    Description: Toggle whether or not to create TestTarget.
+    Type: String
+    AllowedValues: [true, false]
+    Default: true
+
+  ConditionOpx:
+    Description: Toggle whether or not to create Opx.
+    Type: String
+    AllowedValues: [true, false]
+    Default: true
+
+  ConditionEc2InstanceTestTarget:
+    Description: Toggle whether or not to create Ec2InstanceTestTarget.
+    Type: String
+    AllowedValues: [true, false]
+    Default: true
+
+Conditions:
+  ConditionIngressPersonalIp1: !Not [!Equals [!Ref KeyPersonalIp1, '']]
+  ConditionNatGatewayA: !Equals [!Ref ConditionNatGatewayA, 'true']
+  ConditionNatGatewayC: !Equals [!Ref ConditionNatGatewayC, 'true']
+  ConditionTestTarget: !Equals [!Ref ConditionTestTarget, 'true']
+  ConditionOpx: !Equals [!Ref ConditionOpx, 'true']
+  ConditionEc2InstanceTestTarget: !Equals [!Ref ConditionEc2InstanceTestTarget, 'true']
+
+Resources:
 #------------------------------#
 # VPC
 #------------------------------#
   Vpc:
     Type: AWS::EC2::VPC
     Properties:
-      CidrBlock: !Sub '{{resolve:ssm:${CidrBlockKey}}}'
+      CidrBlock: !Sub '{{resolve:ssm:${KeyCidrBlock}}}'
       EnableDnsHostnames: true
       EnableDnsSupport: true
       InstanceTenancy: default
@@ -145,12 +207,12 @@ Resources:
   SubnetPubA:
     Type: AWS::EC2::Subnet
     Properties:
-      AvailabilityZone: !Sub '{{resolve:ssm:${Az1aKey}}}'
+      AvailabilityZone: !Select [0, !GetAZs '']
       VpcId: !Ref Vpc
-      CidrBlock: !Select [ 0, Fn::Cidr: [ !GetAtt VPC.CidrBlock, 1, 8 ] ]
+      CidrBlock: !Select [0, !Cidr [!GetAtt Vpc.CidrBlock, 1, 8]]
         # !Select 
         # - 0
-        # - Fn::Cidr: [ !GetAtt VPC.CidrBlock, 1, 8 ]
+        # - Fn::Cidr: [ !GetAtt Vpc.CidrBlock, 1, 8 ]
       Tags: 
         - Key: Env
           Value: !Ref Env
@@ -164,12 +226,12 @@ Resources:
   SubnetPubC:
     Type: AWS::EC2::Subnet
     Properties:
-      AvailabilityZone: !Sub '{{resolve:ssm:${Az1cKey}}}'
+      AvailabilityZone: !Select [1, !GetAZs '']
       VpcId: !Ref Vpc
       CidrBlock:
         !Select 
         - 1
-        - Fn::Cidr: [ !GetAtt VPC.CidrBlock, 2, 8 ]
+        - Fn::Cidr: [ !GetAtt Vpc.CidrBlock, 2, 8 ]
       Tags: 
         - Key: Env
           Value: !Ref Env
@@ -186,12 +248,12 @@ Resources:
   SubnetPriA1:
     Type: AWS::EC2::Subnet
     Properties:
-      AvailabilityZone: !Sub '{{resolve:ssm:${Az1aKey}}}'
+      AvailabilityZone: !Select [0, !GetAZs '']
       VpcId: !Ref Vpc
       CidrBlock: 
         !Select 
         - 2
-        - Fn::Cidr: [ !GetAtt VPC.CidrBlock, 3, 8]
+        - Fn::Cidr: [ !GetAtt Vpc.CidrBlock, 3, 8]
       Tags: 
         - Key: Env
           Value: !Ref Env
@@ -205,12 +267,12 @@ Resources:
   SubnetPriC1:
     Type: AWS::EC2::Subnet
     Properties:
-      AvailabilityZone: !Sub '{{resolve:ssm:${Az1cKey}}}'
+      AvailabilityZone: !Select [1, !GetAZs '']
       VpcId: !Ref Vpc
       CidrBlock: 
         !Select 
         - 3
-        - Fn::Cidr: [ !GetAtt VPC.CidrBlock, 4, 8]
+        - Fn::Cidr: [ !GetAtt Vpc.CidrBlock, 4, 8]
       Tags: 
         - Key: Env
           Value: !Ref Env
@@ -223,12 +285,12 @@ Resources:
   SubnetPriA2:
     Type: AWS::EC2::Subnet
     Properties:
-      AvailabilityZone: !Sub '{{resolve:ssm:${Az1aKey}}}'
+      AvailabilityZone: !Select [0, !GetAZs '']
       VpcId: !Ref Vpc
       CidrBlock: 
         !Select 
         - 4
-        - Fn::Cidr: [ !GetAtt VPC.CidrBlock, 5, 8]
+        - Fn::Cidr: [ !GetAtt Vpc.CidrBlock, 5, 8]
       Tags: 
         - Key: Env
           Value: !Ref Env
@@ -242,12 +304,12 @@ Resources:
   SubnetPriC2:
     Type: AWS::EC2::Subnet
     Properties:
-      AvailabilityZone: !Sub '{{resolve:ssm:${Az1cKey}}}'
+      AvailabilityZone: !Select [1, !GetAZs '']
       VpcId: !Ref Vpc
       CidrBlock: 
         !Select 
         - 5
-        - Fn::Cidr: [ !GetAtt VPC.CidrBlock, 6, 8]
+        - Fn::Cidr: [ !GetAtt Vpc.CidrBlock, 6, 8]
       Tags: 
         - Key: Env
           Value: !Ref Env
@@ -261,8 +323,8 @@ Resources:
 #------------------------------#
 # NatGateway
 #------------------------------#
-  NatGatawayA:
-    Condition: CreateNatGatewayA
+  NatGatewayA:
+    Condition: ConditionNatGatewayA
     Type: AWS::EC2::NatGateway
     Properties:
       AllocationId: !GetAtt EipNatGatewayA.AllocationId
@@ -277,8 +339,8 @@ Resources:
         - Key: Cost
           Value: !Sub ${Env}-${Stack}
 
-  NatGatawayC:
-    Condition: CreateNatGatewayC
+  NatGatewayC:
+    Condition: ConditionNatGatewayC
     Type: AWS::EC2::NatGateway
     Properties:
       AllocationId: !GetAtt EipNatGatewayC.AllocationId
@@ -297,7 +359,7 @@ Resources:
 # EIP
 #------------------------------#
   EipNatGatewayA:
-    Condition: CreateNatGatewayA
+    Condition: ConditionNatGatewayA
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
@@ -312,7 +374,7 @@ Resources:
           Value: !Sub ${Env}-${Stack}
 
   EipNatGatewayC:
-    Condition: CreateNatGatewayC
+    Condition: ConditionNatGatewayC
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
@@ -459,7 +521,7 @@ Resources:
 # Security Group
 #------------------------------#
   SecurityGroupTestTarget:
-    Condition: CreateTestTarget
+    Condition: ConditionTestTarget
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupName: !Sub secgroup-${Stack}-${Env}-test-target
@@ -470,13 +532,13 @@ Resources:
           IpProtocol: tcp
           FromPort: 3000
           ToPort: 3000
-          CidrIp: !Ref ${IpAddress}
+          CidrIp: !Sub '{{resolve:ssm:${KeySystemIpAddress}}}'
           Description: Access from system.
         - 
           IpProtocol: tcp
           FromPort: 4000
           ToPort: 4000
-          CidrIp: !Ref ${IpAddress}
+          CidrIp: !Sub '{{resolve:ssm:${KeySystemIpAddress}}}'
           Description: Access from system.
         - 
           IpProtocol: tcp
@@ -507,7 +569,7 @@ Resources:
           Value: !Sub ${Env}-${Stack}
 
   SecurityGroupTestTargetOpx:
-    Condition: CreateOpx
+    Condition: ConditionOpx
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupName: !Sub secgroup-${Stack}-${Env}-test-target-opx
@@ -536,7 +598,7 @@ Resources:
       VpcId: !Ref Vpc
       SecurityGroupIngress:
         - !If 
-          - CreateIpIngressPerson1
+          - ConditionIngressPersonalIp1
           - IpProtocol: tcp
             CidrIp: !Sub '{{resolve:ssm:${KeyPersonalIp1}}}'
             FromPort: 443
@@ -557,7 +619,7 @@ Resources:
 # EC2
 #------------------------------#
   Ec2InstanceTestTarget:
-    Condition: CreateEc2InstanceTestTarget
+    Condition: ConditionEc2InstanceTestTarget
     CreationPolicy:
       ResourceSignal:
         Count: 1
@@ -570,7 +632,7 @@ Resources:
             VolumeSize: !Sub '{{resolve:ssm:${KeyEbsVolumeSize}}}'
             VolumeType: !Sub '{{resolve:ssm:${KeyEbsVolumeType}}}'
             Encrypted: true
-      DisableApiTermination: !Ref DisableEc2ApiTermination
+      DisableApiTermination: !Ref ConditionEc2ApiTermination
       IamInstanceProfile: !Sub '{{resolve:ssm:${KeyIamInstanceProfile}}}'
       ImageId: !Sub '{{resolve:ssm:${KeyImageId}}}'
       InstanceType: !Sub '{{resolve:ssm:${KeyInstanceType}}}'
@@ -610,8 +672,8 @@ Resources:
 #------------------------------#
 # NetworkInterface
 #------------------------------#
-  NetworkInterfaceTestTerget:
-    Condition: CreateTestTarget
+  NetworkInterfaceTestTarget:
+    Condition: ConditionTestTarget
     Type: AWS::EC2::NetworkInterface
     Properties:
       SubnetId: !Ref SubnetPriA1
@@ -645,7 +707,7 @@ Resources:
   SnsSubscription:
     Type: AWS::SNS::Subscription
     Properties:
-      Endpoint: !GetAtt Sqs
+      Endpoint: !GetAtt SqsQueue.Arn
       Protocol: sqs
       RawMessageDelivery: 'true'
       TopicArn: !Ref SnsTopic
@@ -695,7 +757,7 @@ Resources:
 #------------------------------#
 # StatusCheckFailed
   CloudWatchAlarmTestTargetStatusCheckFailed:
-    Condition: CreateCloudWatchAlarmTestTarget
+    Condition: ConditionEc2InstanceTestTarget
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmActions: 
@@ -715,6 +777,7 @@ Resources:
 
 # CPUUtilization
   CloudWatchAlarmTestTargetCpuUtilization:
+    Condition: ConditionEc2InstanceTestTarget
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmActions: 
@@ -734,6 +797,7 @@ Resources:
 
 # MemoryUtilization
   CloudWatchAlarmTestTargetCpuUtilization:
+    Condition: ConditionEc2InstanceTestTarget
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmActions: 
@@ -757,6 +821,7 @@ Resources:
 
 # DiskUtilization
   CloudWatchAlarmTestTargetCpuUtilization:
+    Condition: ConditionEc2InstanceTestTarget
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmActions: 
@@ -783,5 +848,3 @@ Resources:
       Statistic: Average
       Threshold: 90
       TreatMissingData: missing
-
-Outputs:
