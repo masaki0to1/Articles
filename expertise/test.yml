@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Provise Test System.
+Description: Provides Test System.
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -31,7 +31,7 @@ Parameters:
   Env:
     Description: Specify the Env Tag. 
     Type: String
-    Default: prod
+    Default: dev
     AllowedValues:
       - prod
       - stage
@@ -70,14 +70,12 @@ Parameters:
     Default: /person1/description
 
   KeyPersonalIp2:
-    Description: Specify the SSM Parameter Store Key for the PersonalIp2.
-    Type: AWS::SSM::Parameter::Name
-    Default: /person2/ip
+    Description: (Optional) Specify the SSM Parameter Store Key for the PersonalIp2.
+    Type: String
 
   KeyPersonalIpDescription2:
-    Description: Specify the SSM Parameter Store Key for the PersonalIpDescription2.
-    Type: AWS::SSM::Parameter::Name
-    Default: /person2/description
+    Description: (Optional) Specify the SSM Parameter Store Key for the PersonalIpDescription2.
+    Type: String
 
   KeyEbsVolumeSize:
     Description: Specify the SSM Parameter Store Key for the EBS Volume Size.
@@ -115,37 +113,37 @@ Parameters:
     Default: /sns/subscriber
 
 # Condition
-  ConditionEc2ApiTermination:
+  CreateEc2ApiTermination:
     Description: Toggle whether or not to enable the DisableApiTermination property of EC2.
     Type: String
     AllowedValues: [ true, false ]
     Default: false
 
-  ConditionNatGatewayA:
+  CreateNatGatewayA:
     Description: Toggle whether or not to create NatGatewayA.
     Type: String
     AllowedValues: [true, false]
     Default: true
 
-  ConditionNatGatewayC:
+  CreateNatGatewayC:
     Description: Toggle whether or not to create NatGatewayC.
     Type: String
     AllowedValues: [true, false]
     Default: false
 
-  ConditionTestTarget:
+  CreateTestTarget:
     Description: Toggle whether or not to create TestTarget.
     Type: String
     AllowedValues: [true, false]
     Default: true
 
-  ConditionOpx:
+  CreateOpx:
     Description: Toggle whether or not to create Opx.
     Type: String
     AllowedValues: [true, false]
     Default: true
 
-  ConditionEc2InstanceTestTarget:
+  CreateEc2InstanceTestTarget:
     Description: Toggle whether or not to create Ec2InstanceTestTarget.
     Type: String
     AllowedValues: [true, false]
@@ -153,11 +151,11 @@ Parameters:
 
 Conditions:
   ConditionIngressPersonalIp1: !Not [!Equals [!Ref KeyPersonalIp1, '']]
-  ConditionNatGatewayA: !Equals [!Ref ConditionNatGatewayA, 'true']
-  ConditionNatGatewayC: !Equals [!Ref ConditionNatGatewayC, 'true']
-  ConditionTestTarget: !Equals [!Ref ConditionTestTarget, 'true']
-  ConditionOpx: !Equals [!Ref ConditionOpx, 'true']
-  ConditionEc2InstanceTestTarget: !Equals [!Ref ConditionEc2InstanceTestTarget, 'true']
+  CreateNatGatewayA: !Equals [!Ref CreateNatGatewayA, 'true']
+  CreateNatGatewayC: !Equals [!Ref CreateNatGatewayC, 'true']
+  CreateTestTarget: !Equals [!Ref CreateTestTarget, 'true']
+  CreateOpx: !Equals [!Ref CreateOpx, 'true']
+  CreateEc2InstanceTestTarget: !Equals [!Ref CreateEc2InstanceTestTarget, 'true']
 
 Resources:
 #------------------------------#
@@ -324,7 +322,7 @@ Resources:
 # NatGateway
 #------------------------------#
   NatGatewayA:
-    Condition: ConditionNatGatewayA
+    Condition: CreateNatGatewayA
     Type: AWS::EC2::NatGateway
     Properties:
       AllocationId: !GetAtt EipNatGatewayA.AllocationId
@@ -340,7 +338,7 @@ Resources:
           Value: !Sub ${Env}-${Stack}
 
   NatGatewayC:
-    Condition: ConditionNatGatewayC
+    Condition: CreateNatGatewayC
     Type: AWS::EC2::NatGateway
     Properties:
       AllocationId: !GetAtt EipNatGatewayC.AllocationId
@@ -359,7 +357,7 @@ Resources:
 # EIP
 #------------------------------#
   EipNatGatewayA:
-    Condition: ConditionNatGatewayA
+    Condition: CreateNatGatewayA
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
@@ -374,7 +372,7 @@ Resources:
           Value: !Sub ${Env}-${Stack}
 
   EipNatGatewayC:
-    Condition: ConditionNatGatewayC
+    Condition: CreateNatGatewayC
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
@@ -522,7 +520,7 @@ Resources:
 # Security Group
 #------------------------------#
   SecurityGroupTestTarget:
-    Condition: ConditionTestTarget
+    Condition: CreateTestTarget
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupName: !Sub secgroup-${Stack}-${Env}-test-target
@@ -570,7 +568,7 @@ Resources:
           Value: !Sub ${Env}-${Stack}
 
   SecurityGroupTestTargetOpx:
-    Condition: ConditionOpx
+    Condition: CreateOpx
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupName: !Sub secgroup-${Stack}-${Env}-test-target-opx
@@ -620,7 +618,7 @@ Resources:
 # EC2
 #------------------------------#
   Ec2InstanceTestTarget:
-    Condition: ConditionEc2InstanceTestTarget
+    Condition: CreateEc2InstanceTestTarget
     CreationPolicy:
       ResourceSignal:
         Count: 1
@@ -633,7 +631,7 @@ Resources:
             VolumeSize: !Sub '{{resolve:ssm:${KeyEbsVolumeSize}}}'
             VolumeType: !Sub '{{resolve:ssm:${KeyEbsVolumeType}}}'
             Encrypted: true
-      DisableApiTermination: !Ref ConditionEc2ApiTermination
+      DisableApiTermination: !Ref CreateEc2ApiTermination
       IamInstanceProfile: !Sub '{{resolve:ssm:${KeyIamInstanceProfile}}}'
       ImageId: !Sub '{{resolve:ssm:${KeyImageId}}}'
       InstanceType: !Sub '{{resolve:ssm:${KeyInstanceType}}}'
@@ -674,7 +672,7 @@ Resources:
 # NetworkInterface
 #------------------------------#
   NetworkInterfaceTestTarget:
-    Condition: ConditionTestTarget
+    Condition: CreateTestTarget
     Type: AWS::EC2::NetworkInterface
     Properties:
       SubnetId: !Ref SubnetPriA1
@@ -758,7 +756,7 @@ Resources:
 #------------------------------#
 # StatusCheckFailed
   CloudWatchAlarmTestTargetStatusCheckFailed:
-    Condition: ConditionEc2InstanceTestTarget
+    Condition: CreateEc2InstanceTestTarget
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmActions: 
@@ -778,7 +776,7 @@ Resources:
 
 # CPUUtilization
   CloudWatchAlarmTestTargetCpuUtilization:
-    Condition: ConditionEc2InstanceTestTarget
+    Condition: CreateEc2InstanceTestTarget
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmActions: 
@@ -798,7 +796,7 @@ Resources:
 
 # MemoryUtilization
   CloudWatchAlarmTestTargetMemoryUtilization:
-    Condition: ConditionEc2InstanceTestTarget
+    Condition: CreateEc2InstanceTestTarget
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmActions: 
@@ -822,7 +820,7 @@ Resources:
 
 # DiskUtilization
   CloudWatchAlarmTestTargetDiskUtilization:
-    Condition: ConditionEc2InstanceTestTarget
+    Condition: CreateEc2InstanceTestTarget
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmActions: 

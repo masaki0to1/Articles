@@ -1,0 +1,855 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Provides Test System.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - 
+        Label:
+          default: System Configuration
+        Parameters:
+          - Env
+          - Stack
+          - Owner
+      - 
+        Label:
+          default: SSM Paramter Store Key Configuration
+        Parameters:
+          - KeyCidrBlock
+          - KeyPersonalIp1
+
+    ParameterLabels:
+      Stack:
+        default: 'Stack: *Only lowercase alphanumeric characters and hyphens are allowed.'
+      Owner:
+        default: 'Owner: *Only lowercase alphanumeric characters and hyphens are allowed. Please put a hyphen between your first name and last name.'
+
+#---------------------------------------------------------#
+# Input Parameters
+#---------------------------------------------------------#
+Parameters:
+  Env:
+    Description: Specify the Env Tag. 
+    Type: String
+    Default: dev
+    AllowedValues:
+      - prod
+      - stage
+      - test
+      - dev
+      - common
+
+  Stack:
+    Description: Specify the Stack Tag.
+    Type: String
+    Default: ezapp
+    AllowedPattern: ^[a-z]([\-]{0,1}[a-z0-9]+)*$
+    ConstraintDescription: This Parameter must match pattern ^[a-z]([\-]{0.1}[a-z0-9]+)*$
+
+  Owner:
+    Description: Enter the name of the person creating this stack.
+    Type: String
+    Default: masaki-ishimoto
+    AllowedPattern: ^[a-z]([\-]{0,1}[a-z0-9]+)*$
+    ConstraintDescription: This Parameter must match pattern ^[a-z]([\-]{0.1}[a-z0-9]+)*$
+
+  CidrBlock:
+    Description: Specify the VPC CidrBlock.
+    Type: AWS::SSM::Parameter::Name
+    Default: /vpc/cidrblock
+
+  PersonalIp1:
+    Description: Specify the PersonalIp1.
+    Type: AWS::SSM::Parameter::Name
+    Default: /person1/ip
+
+  PersonalIpDescription1:
+    Description: Specify the PersonalIpDescription1.
+    Type: AWS::SSM::Parameter::Name
+    Default: /person1/description
+
+  PersonalIp2:
+    Description: (Optional) Specify the PersonalIp2.
+    Type: String
+
+  PersonalIpDescription2:
+    Description: (Optional) Specify the PersonalIpDescription2.
+    Type: String
+
+  EbsVolumeSize:
+    Description: Specify the EBS Volume Size.
+    Type: String
+
+  EbsVolumeType:
+    Description: Specify the EBS Volume Type.
+    Type: String
+
+  ImageId:
+    Description: Specify the Instance Image ID.
+    Type: String
+
+  InstanceType:
+    Description: Specify the Instance Type.
+    Type: String
+
+  IamInstanceProfile:
+    Description: Specify the IAM Instence Profile.
+    Type: String
+
+  SystemIpAddress:
+    Description: Specify the SystemIpAddress.
+    Type: String
+
+  SnsTopicSubscriber:
+    Description: Specify the SNS Topic Subscriber.
+    Type: String
+
+  VpcId:
+    Description: Enter the VPC ID. 
+    Type: String
+    
+  CidrBlockSubnetPriA1:
+    Description: Enter the CidrBlock for Private Subnet A1.
+    Type: String
+
+  WindowsServerAmiId:
+    Description: Enter the AMI ID of WindowsServer.
+    Type: String
+    Defalut: ami-099772c3838a3bec1
+
+# Condition
+  DisableEc2ApiTermination:
+    Description: Toggle whether or not to enable the DisableApiTermination property of EC2.
+    Type: String
+    AllowedValues: [ true, false ]
+    Default: false
+
+  CreateNatGatewayA:
+    Description: Toggle whether or not to create NatGatewayA.
+    Type: String
+    AllowedValues: [true, false]
+    Default: true
+
+  CreateNatGatewayC:
+    Description: Toggle whether or not to create NatGatewayC.
+    Type: String
+    AllowedValues: [true, false]
+    Default: false
+
+  CreateTestTarget:
+    Description: Toggle whether or not to create TestTarget.
+    Type: String
+    AllowedValues: [true, false]
+    Default: true
+
+  CreateOpx:
+    Description: Toggle whether or not to create Opx.
+    Type: String
+    AllowedValues: [true, false]
+    Default: true
+
+  CreateEc2InstanceTestTarget:
+    Description: Toggle whether or not to create Ec2InstanceTestTarget.
+    Type: String
+    AllowedValues: [true, false]
+    Default: true
+
+Conditions:
+  ConditionIngressPersonalIp1: !Not [!Equals [!Ref KeyPersonalIp1, '']]
+  CreateNatGatewayA: !Equals [!Ref CreateNatGatewayA, 'true']
+  CreateNatGatewayC: !Equals [!Ref CreateNatGatewayC, 'true']
+  CreateTestTarget: !Equals [!Ref CreateTestTarget, 'true']
+  CreateOpx: !Equals [!Ref CreateOpx, 'true']
+  CreateEc2InstanceTestTarget: !Equals [!Ref CreateEc2InstanceTestTarget, 'true']
+
+
+Resources:
+#------------------------------#
+# VPC
+#------------------------------#
+  # Vpc:
+  #   Type: AWS::EC2::VPC
+  #   Properties:
+  #     CidrBlock: !Ref CidrBlock
+  #     EnableDnsHostnames: true
+  #     EnableDnsSupport: true
+  #     InstanceTenancy: default
+  #     Tags: 
+  #       - Key: Env
+  #         Value: !Ref Env
+  #       - Key: Stack
+  #         Value: !Ref Stack
+  #       - Key: Owner
+  #         Value: !Ref Owner
+  #       - Key: Cost
+  #         Value: !Sub ${Env}-${Stack}
+
+#------------------------------#
+# Internet Gateway
+#------------------------------#
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags: 
+        - Key: Env
+          Value: !Ref Env
+        - Key: Stack
+          Value: !Ref Stack
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Cost
+          Value: !Sub ${Env}-${Stack}
+  VpcGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VpcId
+      InternetGatewayId: !Ref InternetGateway
+
+#------------------------------#
+# Public Subnet
+#------------------------------#
+  # SubnetPubA:
+  #   Type: AWS::EC2::Subnet
+  #   Properties:
+  #     AvailabilityZone: !Select [0, !GetAZs '']
+  #     VpcId: !Ref VpcId
+  #     CidrBlock: !Select [0, !Cidr [!GetAtt Vpc.CidrBlock, 1, 8]]
+  #       # !Select 
+  #       # - 0
+  #       # - Fn::Cidr: [ !GetAtt Vpc.CidrBlock, 1, 8 ]
+  #     Tags: 
+  #       - Key: Env
+  #         Value: !Ref Env
+  #       - Key: Stack
+  #         Value: !Ref Stack
+  #       - Key: Owner
+  #         Value: !Ref Owner
+  #       - Key: Cost
+  #         Value: !Sub ${Env}-${Stack}
+
+  # SubnetPubC:
+  #   Type: AWS::EC2::Subnet
+  #   Properties:
+  #     AvailabilityZone: !Select [1, !GetAZs '']
+  #     VpcId: !Ref VpcId
+  #     CidrBlock:
+  #       !Select 
+  #       - 1
+  #       - Fn::Cidr: [ !GetAtt Vpc.CidrBlock, 2, 8 ]
+  #     Tags: 
+  #       - Key: Env
+  #         Value: !Ref Env
+  #       - Key: Stack
+  #         Value: !Ref Stack
+  #       - Key: Owner
+  #         Value: !Ref Owner
+  #       - Key: Cost
+  #         Value: !Sub ${Env}-${Stack}
+  
+#------------------------------#
+# Private Subnet
+#------------------------------#
+  SubnetPriA1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs '']
+      VpcId: !Ref VpcId
+      CidrBlock: !Ref CidrBlockSubnetPriA1
+        # !Select 
+        # - 2
+        # - Fn::Cidr: [ !GetAtt Vpc.CidrBlock, 3, 8]
+      Tags: 
+        - Key: Env
+          Value: !Ref Env
+        - Key: Stack
+          Value: !Ref Stack
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Cost
+          Value: !Sub ${Env}-${Stack}
+
+  # SubnetPriC1:
+  #   Type: AWS::EC2::Subnet
+  #   Properties:
+  #     AvailabilityZone: !Select [1, !GetAZs '']
+  #     VpcId: !Ref VpcId
+  #     CidrBlock: 
+  #       !Select 
+  #       - 3
+  #       - Fn::Cidr: [ !GetAtt Vpc.CidrBlock, 4, 8]
+  #     Tags: 
+  #       - Key: Env
+  #         Value: !Ref Env
+  #       - Key: Stack
+  #         Value: !Ref Stack
+  #       - Key: Owner
+  #         Value: !Ref Owner
+  #       - Key: Cost
+  #         Value: !Sub ${Env}-${Stack}
+  # SubnetPriA2:
+  #   Type: AWS::EC2::Subnet
+  #   Properties:
+  #     AvailabilityZone: !Select [0, !GetAZs '']
+  #     VpcId: !Ref VpcId
+  #     CidrBlock: 
+  #       !Select 
+  #       - 4
+  #       - Fn::Cidr: [ !GetAtt Vpc.CidrBlock, 5, 8]
+  #     Tags: 
+  #       - Key: Env
+  #         Value: !Ref Env
+  #       - Key: Stack
+  #         Value: !Ref Stack
+  #       - Key: Owner
+  #         Value: !Ref Owner
+  #       - Key: Cost
+  #         Value: !Sub ${Env}-${Stack}
+
+  # SubnetPriC2:
+  #   Type: AWS::EC2::Subnet
+  #   Properties:
+  #     AvailabilityZone: !Select [1, !GetAZs '']
+  #     VpcId: !Ref VpcId
+  #     CidrBlock: 
+  #       !Select 
+  #       - 5
+  #       - Fn::Cidr: [ !GetAtt Vpc.CidrBlock, 6, 8]
+  #     Tags: 
+  #       - Key: Env
+  #         Value: !Ref Env
+  #       - Key: Stack
+  #         Value: !Ref Stack
+  #       - Key: Owner
+  #         Value: !Ref Owner
+  #       - Key: Cost
+  #         Value: !Sub ${Env}-${Stack}
+
+#------------------------------#
+# NatGateway
+#------------------------------#
+  # NatGatewayA:
+  #   Condition: CreateNatGatewayA
+  #   Type: AWS::EC2::NatGateway
+  #   Properties:
+  #     AllocationId: !GetAtt EipNatGatewayA.AllocationId
+  #     SubnetId: !Ref SubnetPubA
+  #     Tags: 
+  #       - Key: Env
+  #         Value: !Ref Env
+  #       - Key: Stack
+  #         Value: !Ref Stack
+  #       - Key: Owner
+  #         Value: !Ref Owner
+  #       - Key: Cost
+  #         Value: !Sub ${Env}-${Stack}
+
+  # NatGatewayC:
+  #   Condition: CreateNatGatewayC
+  #   Type: AWS::EC2::NatGateway
+  #   Properties:
+  #     AllocationId: !GetAtt EipNatGatewayC.AllocationId
+  #     SubnetId: !Ref SubnetPubC
+  #     Tags: 
+  #       - Key: Env
+  #         Value: !Ref Env
+  #       - Key: Stack
+  #         Value: !Ref Stack
+  #       - Key: Owner
+  #         Value: !Ref Owner
+  #       - Key: Cost
+  #         Value: !Sub ${Env}-${Stack}
+
+#------------------------------#
+# EIP
+#------------------------------#
+  # EipNatGatewayA:
+  #   Condition: CreateNatGatewayA
+  #   Type: AWS::EC2::EIP
+  #   Properties:
+  #     Domain: vpc
+  #     Tags: 
+  #       - Key: Env
+  #         Value: !Ref Env
+  #       - Key: Stack
+  #         Value: !Ref Stack
+  #       - Key: Owner
+  #         Value: !Ref Owner
+  #       - Key: Cost
+  #         Value: !Sub ${Env}-${Stack}
+
+  # EipNatGatewayC:
+  #   Condition: CreateNatGatewayC
+  #   Type: AWS::EC2::EIP
+  #   Properties:
+  #     Domain: vpc
+  #     Tags: 
+  #       - Key: Env
+  #         Value: !Ref Env
+  #       - Key: Stack
+  #         Value: !Ref Stack
+  #       - Key: Owner
+  #         Value: !Ref Owner
+  #       - Key: Cost
+  #         Value: !Sub ${Env}-${Stack}
+
+#------------------------------#
+# Route Table
+#------------------------------#
+  # RouteTableVpc:
+  #   Type: AWS::EC2::RouteTable
+  #   Properties:
+  #     VpcId: !Ref VpcId
+  #     Tags: 
+  #       - Key: Env
+  #         Value: !Ref Env
+  #       - Key: Stack
+  #         Value: !Ref Stack
+  #       - Key: Owner
+  #         Value: !Ref Owner
+  #       - Key: Cost
+  #         Value: !Sub ${Env}-${Stack}
+
+  # RouteTablePriA:
+  #   Type: AWS::EC2::RouteTable
+  #   Properties:
+  #     VpcId: !Ref VpcId
+  #     Tags: 
+  #       - Key: Env
+  #         Value: !Ref Env
+  #       - Key: Stack
+  #         Value: !Ref Stack
+  #       - Key: Owner
+  #         Value: !Ref Owner
+  #       - Key: Cost
+  #         Value: !Sub ${Env}-${Stack}
+
+  # RouteTablePriC:
+  #   Type: AWS::EC2::RouteTable
+  #   Properties:
+  #     VpcId: !Ref VpcId
+  #     Tags: 
+  #       - Key: Env
+  #         Value: !Ref Env
+  #       - Key: Stack
+  #         Value: !Ref Stack
+  #       - Key: Owner
+  #         Value: !Ref Owner
+  #       - Key: Cost
+  #         Value: !Sub ${Env}-${Stack}
+
+#------------------------------#
+# Route
+#------------------------------#
+  # RouteInternetGateway:
+  #   Type: AWS::EC2::Route
+  #   Properties:
+  #     DestinationCidrBlock: 0.0.0.0/0
+  #     GatewayId: !Ref InternetGateway
+  #     RouteTableId: !Ref RouteTableVpc
+
+  # RouteNatGatewayA:
+  #   Type: AWS::EC2::Route
+  #   Properties:
+  #     DestinationCidrBlock: 0.0.0.0/0
+  #     NatGatewayId: !Ref NatGatewayA
+  #     RouteTableId: !Ref RouteTablePriA
+
+  # RouteNatGatewayC:
+  #   Type: AWS::EC2::Route
+  #   Properties:
+  #     DestinationCidrBlock: 0.0.0.0/0
+  #     NatGatewayId: !Ref NatGatewayC
+  #     RouteTableId: !Ref RouteTablePriC
+
+#------------------------------#
+# Subnet Association
+#------------------------------#
+  # SubnetRouteTableAssociationPubA:
+  #   Type: AWS::EC2::SubnetRouteTableAssociation
+  #   Properties:
+  #     RouteTableId: !Ref RouteTableVpc
+  #     SubnetId: !Ref SubnetPubA
+
+  # SubnetRouteTableAssociationPubC:
+  #   Type: AWS::EC2::SubnetRouteTableAssociation
+  #   Properties:
+  #     RouteTableId: !Ref RouteTableVpc
+  #     SubnetId: !Ref SubnetPubC
+
+  # SubnetRouteTableAssociationPriA1:
+  #   Type: AWS::EC2::SubnetRouteTableAssociation
+  #   Properties:
+  #     RouteTableId: !Ref RouteTablePriA
+  #     SubnetId: !Ref SubnetPriA1
+
+  # SubnetRouteTableAssociationPriC1:
+  #   Type: AWS::EC2::SubnetRouteTableAssociation
+  #   Properties:
+  #     RouteTableId: !Ref RouteTablePriC
+  #     SubnetId: !Ref SubnetPriC1
+
+  # SubnetRouteTableAssociationPriA2:
+  #   Type: AWS::EC2::SubnetRouteTableAssociation
+  #   Properties:
+  #     RouteTableId: !Ref RouteTablePriA
+  #     SubnetId: !Ref SubnetPriA2
+
+  # SubnetRouteTableAssociationPriC2:
+  #   Type: AWS::EC2::SubnetRouteTableAssociation
+  #   Properties:
+  #     RouteTableId: !Ref RouteTablePriC
+  #     SubnetId: !Ref SubnetPriC2
+
+#------------------------------#
+# Endpoint
+#------------------------------#
+  # VpcEndpointS3:
+  #   Type: AWS::EC2::VPCEndpoint
+  #   Properties:
+  #     PolicyDocument:
+  #       Version: 2012-10-17
+  #       Statement:
+  #         - Effect: Allow
+  #           Principal: '*'
+  #           Action:
+  #             - '*'
+  #           Resource:
+  #             - '*'
+  #     RouteTableIds:
+  #       - !Ref RouteTablePriA
+  #       - !Ref RouteTablePriC
+  #     ServiceName: com.amazonaws.${AWS::Region}.s3
+  #     VpcEndpointType: Gateway
+  #     VpcId: !Ref VpcId
+
+#------------------------------#
+# Security Group
+#------------------------------#
+  SecurityGroupTestTarget:
+    Condition: CreateTestTarget
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub secgroup-${Stack}-${Env}-test-target
+      GroupDescription: !Sub Security group for ${Stack}-${Env} test target.
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - 
+          IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          CidrIp: !Ref SystemIpAddress
+          Description: Access from system.
+        - 
+          IpProtocol: tcp
+          FromPort: 4000
+          ToPort: 4000
+          CidrIp: !Ref SystemIpAddress
+          Description: Access from system.
+        - 
+          IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          CidrIp: !GetAtt SecurityGroupAlb.GroupId
+          Description: Access from system.
+        - 
+          IpProtocol: tcp
+          FromPort: 4000
+          ToPort: 4000
+          CidrIp: !GetAtt SecurityGroupAlb.GroupId
+          Description: Access from system.
+        - 
+          IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: !GetAtt SecurityGroupAlb.GroupId
+          Description: Access from system.
+      Tags: 
+        - Key: Env
+          Value: !Ref Env
+        - Key: Stack
+          Value: !Ref Stack
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Cost
+          Value: !Sub ${Env}-${Stack}
+
+  SecurityGroupTestTargetOpx:
+    Condition: CreateOpx
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub secgroup-${Stack}-${Env}-test-target-opx
+      GroupDescription: !Sub Security group for ${Stack}-${Env} test target.
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        IpProtocol: tcp
+        FromPort: 81
+        ToPort: 81
+        SourceSecurityGroupId: !GetAtt SecurityGroupAlb.GroupId
+      Tags: 
+        - Key: Env
+          Value: !Ref Env
+        - Key: Stack
+          Value: !Ref Stack
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Cost
+          Value: !Sub ${Env}-${Stack}
+
+  SecurityGroupAlb:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub secgroup-${Stack}-${Env}-alb
+      GroupDescription: !Sub Security group for ${Stack}-${Env} alb.
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - !If 
+          - ConditionIngressPersonalIp1
+          - IpProtocol: tcp
+            CidrIp: !Sub ${PersonalIp1}
+            FromPort: 443
+            ToPort: 443
+            Description: !Sub ${PersonalIpDescription1}
+          - !Ref AWS::NoValue
+      Tags: 
+        - Key: Env
+          Value: !Ref Env
+        - Key: Stack
+          Value: !Ref Stack
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Cost
+          Value: !Sub ${Env}-${Stack}
+
+#------------------------------#
+# EC2
+#------------------------------#
+  Ec2InstanceTestTarget:
+    Condition: CreateEc2InstanceTestTarget
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        Timeout: PT10M
+    Type: AWS::EC2::Instance
+    Properties:
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: !Ref EbsVolumeSize
+            VolumeType: !Ref EbsVolumeType
+            Encrypted: true
+      DisableApiTermination: !Ref DisableEc2ApiTermination
+      IamInstanceProfile: !Ref IamInstanceProfile
+      ImageId: !Ref WindowsServerAmiId
+      InstanceType: !Ref InstanceType
+      Monitoring: true
+      NetworkInterfaces:
+        - DeviceIndex: 0
+          NetworkInterfaceId: !Ref NetworkInterfaceTestTarget
+      # UserData: 
+      #   Fn::Base64: !Sub |
+      #     #!/bin/bash 
+      #     apt update -y
+      #     apt upgrade -y
+      #     mkdir -p /opt/aws/bin
+      #     apt install -y wget
+      #     wget https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
+      #     python3 -m easy_install --script-dir /opt/aws/bin aws-cfn-bootstrap-py3-latest.tar.gz
+      #     wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb -O /tmp/amazon-cloudwatch-agent.deb
+      #     dpkg -i /tmp/amazon-cloudwatch-agent.deb
+      #     apt install -y ruby-full
+      #     wget https://aws-codedeploy-ap-northeast-1.s3.ap-northeast-1.amazonaws.com/latest/install
+      #     chmod +x ./install
+      #     ./install/ auto > /tmp/logfile
+      #     service codedeploy-agent restart
+      #     apt update -y
+      #     /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource Ec2InstanceTestTarget --region ${AWS::Region} --configsets default
+      #     /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource Ec2InstanceTestTarget --region ${AWS::Region}
+      Tags: 
+        - Key: Env
+          Value: !Ref Env
+        - Key: Stack
+          Value: !Ref Stack
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Cost
+          Value: !Sub ${Env}-${Stack}
+
+#------------------------------#
+# NetworkInterface
+#------------------------------#
+  NetworkInterfaceTestTarget:
+    Condition: CreateTestTarget
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      SubnetId: !Ref SubnetPriA1
+      GroupSet:
+        - !Ref SecurityGroupTestTarget
+
+#------------------------------#
+# SNS Topic
+#------------------------------#
+  SnsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: !Sub ${Stack}-${Env}-sns-topic
+      Subscription: !Ref SnsTopicSubscriber
+      Protocol: sqs
+      RawMessageDelivery: 'true'
+      TopicName: !Sub ${Stack}-${Env}-sns-topic
+      Tags: 
+        - Key: Env
+          Value: !Ref Env
+        - Key: Stack
+          Value: !Ref Stack
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Cost
+          Value: !Sub ${Env}-${Stack}
+
+#------------------------------#
+# SNS Subscription
+#------------------------------#
+  SnsSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Endpoint: !GetAtt SqsQueue.Arn
+      Protocol: sqs
+      RawMessageDelivery: 'true'
+      TopicArn: !Ref SnsTopic
+
+#------------------------------#
+# SQS
+#------------------------------#
+  SqsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      FifoQueue: false
+      DelaySeconds: 0
+      MaximumMessageSize: 262144
+      MessageRetentionPeriod: 345600
+      QueueName: !Sub ${Stack}-${Env}-sqs-queue
+      ReceiveMessageWaitTimeSeconds: 20
+      RedrivePolicy: 
+        deadLetterTargetArn: !GetAtt SqsQueueDeadLetterQueue.Arn
+        maxReceiveCount: 5
+      VisibilityTimeout: 30
+      Tags: 
+        - Key: Env
+          Value: !Ref Env
+        - Key: Stack
+          Value: !Ref Stack
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Cost
+          Value: !Sub ${Env}-${Stack}
+
+  SqsQueueDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      FifoQueue: false
+      Tags: 
+        - Key: Env
+          Value: !Ref Env
+        - Key: Stack
+          Value: !Ref Stack
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Cost
+          Value: !Sub ${Env}-${Stack}
+
+#------------------------------#
+# CloudWatchAlarm
+#------------------------------#
+# StatusCheckFailed
+  CloudWatchAlarmTestTargetStatusCheckFailed:
+    Condition: CreateEc2InstanceTestTarget
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions: 
+        - !Ref SnsTopic 
+      AlarmName: !Sub ${Stack}-${Env}-test-target-ec2-status-check-failed
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions: 
+        - Name: InstanceId
+          Value: !Ref Ec2InstanceTestTarget
+      EvaluationPeriods: 2
+      MetricName: StatusCheckFailed
+      Namespace: AWS/EC2
+      Period: 300
+      Statistic: Average
+      Threshold: 0
+      TreatMissingData: missing
+
+# # CPUUtilization
+#   CloudWatchAlarmTestTargetCpuUtilization:
+#     Condition: CreateEc2InstanceTestTarget
+#     Type: AWS::CloudWatch::Alarm
+#     Properties:
+#       AlarmActions: 
+#         - !Ref SnsTopic 
+#       AlarmName: !Sub ${Stack}-${Env}-ec2-cpu-utilization
+#       ComparisonOperator: GreaterThanOrEqualToThreshold
+#       Dimensions: 
+#         - Name: InstanceId
+#           Value: !Ref Ec2InstanceTestTarget
+#       EvaluationPeriods: 5
+#       MetricName: CPUUtilization
+#       Namespace: AWS/EC2
+#       Period: 60
+#       Statistic: Average
+#       Threshold: 70
+#       TreatMissingData: missing
+
+# # MemoryUtilization
+#   CloudWatchAlarmTestTargetMemoryUtilization:
+#     Condition: CreateEc2InstanceTestTarget
+#     Type: AWS::CloudWatch::Alarm
+#     Properties:
+#       AlarmActions: 
+#         - !Ref SnsTopic 
+#       AlarmName: !Sub ${Stack}-${Env}-ec2-memory-utilization
+#       ComparisonOperator: GreaterThanOrEqualToThreshold
+#       Dimensions: 
+#         - Name: InstanceId
+#           Value: !Ref Ec2InstanceTestTarget
+#         - Name: ImageId
+#           Value: !Ref ImageId
+#         - Name: InstanceType
+#           Value: t3.small
+#       EvaluationPeriods: 5
+#       MetricName: mem_used_percent
+#       Namespace: CWAgent/Server
+#       Period: 60
+#       Statistic: Average
+#       Threshold: 80
+#       TreatMissingData: missing
+
+# # DiskUtilization
+#   CloudWatchAlarmTestTargetDiskUtilization:
+#     Condition: CreateEc2InstanceTestTarget
+#     Type: AWS::CloudWatch::Alarm
+#     Properties:
+#       AlarmActions: 
+#         - !Ref SnsTopic 
+#       AlarmName: !Sub ${Stack}-${Env}-ec2-disk-utilization
+#       ComparisonOperator: GreaterThanOrEqualToThreshold
+#       Dimensions: 
+#         - Name: path
+#           Value: '/'
+#         - Name: InstanceId
+#           Value: !Ref Ec2InstanceTestTarget
+#         - Name: ImageId
+#           Value: !Ref ImageId
+#         - Name: InstanceType
+#           Value: t3.small
+#         - Name: device
+#           Value: nvme0n1p1
+#         - Name: fstype
+#           Value: ext4
+#       EvaluationPeriods: 6
+#       MetricName: disk_used_percent
+#       Namespace: CWAgent/Server
+#       Period: 300
+#       Statistic: Average
+#       Threshold: 90
+#       TreatMissingData: missing
