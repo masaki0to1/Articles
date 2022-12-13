@@ -1,4 +1,4 @@
-# CloudFormation テンプレート開発のTipsまとめ
+# CloudFormationテンプレート開発のTips: ParameterとSSMParameterStore編
 
 ## CFnテンプレートのParemtersセクションについて
 ---

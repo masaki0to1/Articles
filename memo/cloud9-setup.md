@@ -92,7 +92,7 @@
             HostName <Instance ID>
             User ec2-user
             IdentityFile C:\Users\<UserName>\.ssh\<RSA Private Key File Name>
-            ProxyCommand C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe "aws ssm start-session --profile <Login User Profile> Admin@Cloud9 --target %h --document-name AWS-StartSSHSession --parameters 'portNumber=%p'"
+            ProxyCommand C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe "aws ssm start-session --profile <Login User Profile> --target %h --document-name AWS-StartSSHSession --parameters 'portNumber=%p'"
 - Linuxの場合：
 
         Host <Any Name>
