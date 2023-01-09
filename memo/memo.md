@@ -1,0 +1,5 @@
+- VSCodeからwsl2を介してec2へ多段sshは難しそう
+- VSCodeでwsl2へRemote-WSL接続して、コンソールからec2へssh接続はできる
+- VSCodeからwsl2へssh接続ができない←これが決定的な気がする
+- Cloud9をVSCodeで利用するには、Windows上のVSCodeからsshするしかなさそう
+    - ssmでsshしたいので、windows上にもssm-pluginの設定をしてみる
